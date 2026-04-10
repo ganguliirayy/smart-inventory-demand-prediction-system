@@ -1,0 +1,52 @@
+require('dotenv').config();
+require('express-async-errors');
+
+const express      = require('express');
+const cors         = require('cors');
+const connectDB    = require('./config/db');
+const errorHandler = require('./middleware/errorHandler');
+const { generalLimiter, authLimiter, apiLimiter } = require('./middleware/rateLimit');
+
+const authRoutes        = require('./routes/auth');
+const medicineRoutes    = require('./routes/medicines');
+const salesRoutes       = require('./routes/sales');
+const activitiesRoutes  = require('./routes/activities');
+const predictionsRoutes = require('./routes/predictions');
+const adminRoutes       = require('./routes/admin');
+
+connectDB();
+
+const app = express();
+
+app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173', credentials: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(generalLimiter);
+
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, message: '🚀 RxFlow AI Server is LIVE!', timestamp: new Date().toISOString() });
+});
+
+app.use('/api/auth',        authLimiter, authRoutes);
+app.use('/api/medicines',   apiLimiter,  medicineRoutes);
+app.use('/api/sales',       apiLimiter,  salesRoutes);
+app.use('/api/activities',  apiLimiter,  activitiesRoutes);
+app.use('/api/predictions', apiLimiter,  predictionsRoutes);
+app.use('/api/admin',       apiLimiter,  adminRoutes);
+
+app.use('*', (req, res) => {
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+});
+
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 5000;
+const server = app.listen(PORT, () => {
+  console.log(`🚀 RxFlow Server running on http://localhost:${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+  server.close(() => { console.log('Server closed.'); process.exit(0); });
+});
+
+module.exports = app;
