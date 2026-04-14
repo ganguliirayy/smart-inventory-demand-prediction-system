@@ -3,6 +3,7 @@ require('express-async-errors');
 
 const express      = require('express');
 const cors         = require('cors');
+const mongoose     = require('mongoose');
 const connectDB    = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 const { generalLimiter, authLimiter, apiLimiter } = require('./middleware/rateLimit');
@@ -14,6 +15,7 @@ const activitiesRoutes  = require('./routes/activities');
 const predictionsRoutes = require('./routes/predictions');
 const adminRoutes       = require('./routes/admin');
 
+// Connect to DB (non-blocking — server starts even if DB is down)
 connectDB();
 
 const app = express();
@@ -23,8 +25,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(generalLimiter);
 
+// Health check — also shows DB status
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: '🚀 RxFlow AI Server is LIVE!', timestamp: new Date().toISOString() });
+  const dbState = mongoose.connection.readyState;
+  const dbStatus = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.json({
+    success: true,
+    message: '🚀 RxFlow AI Server is LIVE!',
+    database: dbStatus[dbState] || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use('/api/auth',        authLimiter, authRoutes);
