@@ -20,14 +20,13 @@ connectDB();
 
 const app = express();
 
-const allowedOrigins = [
-  process.env.CORS_ORIGIN,
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175'
-].filter(Boolean);
-
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors({ 
+  origin: function (origin, callback) {
+    // Dynamically allow all origins to eliminate CORS issues on Vercel/Render
+    callback(null, origin || true);
+  }, 
+  credentials: true 
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(generalLimiter);
