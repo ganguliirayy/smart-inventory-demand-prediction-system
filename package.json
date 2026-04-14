@@ -1,0 +1,12 @@
+{
+  "name": "smart-inventory-demand-prediction-system",
+  "version": "1.0.0",
+  "description": "Root configuration to run both client and server",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "install-all": "npm install && npm install --prefix client && npm install --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
