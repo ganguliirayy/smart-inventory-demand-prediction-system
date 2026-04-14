@@ -1,7 +1,7 @@
 require('dotenv').config();
 require('express-async-errors');
-
 const express      = require('express');
+const path         = require('path');
 const cors         = require('cors');
 const mongoose     = require('mongoose');
 const connectDB    = require('./config/db');
@@ -51,9 +51,19 @@ app.use('/api/activities',  apiLimiter,  activitiesRoutes);
 app.use('/api/predictions', apiLimiter,  predictionsRoutes);
 app.use('/api/admin',       apiLimiter,  adminRoutes);
 
-app.use('*', (req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
-});
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+  });
+} else {
+  // Catch-all for API 404s when not in production
+  app.use('*', (req, res) => {
+    res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+  });
+}
 
 app.use(errorHandler);
 
