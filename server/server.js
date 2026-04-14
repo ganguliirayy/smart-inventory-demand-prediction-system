@@ -67,12 +67,16 @@ if (process.env.NODE_ENV === 'production') {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`🚀 RxFlow Server running on http://localhost:${PORT}`);
-});
 
-process.on('SIGTERM', () => {
-  server.close(() => { console.log('Server closed.'); process.exit(0); });
-});
-
+// Export app for Vercel before calling listen
 module.exports = app;
+
+if (process.env.NODE_ENV !== 'production' || process.env.RUN_LOCAL === 'true') {
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 RxFlow Server running on http://localhost:${PORT}`);
+  });
+
+  process.on('SIGTERM', () => {
+    server.close(() => { console.log('Server closed.'); process.exit(0); });
+  });
+}
