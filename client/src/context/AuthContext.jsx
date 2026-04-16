@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../api';
 
 const AuthContext = createContext(null);
-const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -35,15 +35,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, phone }),
-      });
+      const response = await api.post('/auth/signup', { name, email, password, phone });
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         const userData = data.user;
         const token = data.token;
         
@@ -56,7 +51,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Signup error:', error);
-      return { success: false, message: 'Unable to connect to server. Please try again.' };
+      return { success: false, message: error.response?.data?.message || 'Unable to connect to server. Please try again.' };
     }
   };
 
@@ -67,15 +62,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await api.post('/auth/login', { email, password });
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         const userData = data.user;
         const token = data.token;
         
@@ -88,7 +78,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, message: 'Unable to connect to server. Please try again.' };
+      return { success: false, message: error.response?.data?.message || 'Unable to connect to server. Please try again.' };
     }
   };
 
@@ -97,13 +87,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem('rxflow_token');
       if (token) {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        await api.post('/auth/logout');
       }
     } catch (error) {
       console.warn('Logout API call failed:', error);
@@ -136,51 +120,5 @@ export const useAuth = () => {
   return context;
 };
 
-// API helper for authenticated requests
-export const api = {
-  get: async (endpoint) => {
-    const token = localStorage.getItem('rxflow_token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return { data: await response.json() };
-  },
-  post: async (endpoint, body) => {
-    const token = localStorage.getItem('rxflow_token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    return { data: await response.json() };
-  },
-  put: async (endpoint, body) => {
-    const token = localStorage.getItem('rxflow_token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    return { data: await response.json() };
-  },
-  delete: async (endpoint) => {
-    const token = localStorage.getItem('rxflow_token');
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return { data: await response.json() };
-  },
-};
+// Re-export api so existing components can use it
+export { api };
