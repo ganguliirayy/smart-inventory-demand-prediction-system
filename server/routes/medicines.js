@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
   const pageLimit = Math.min(100, Math.max(1, parseInt(limit)));
   const skip = (pageNum - 1) * pageLimit;
 
-  const query = { user: req.user.id, isActive: true };
+  const query = { $or: [{ isActive: true }, { isActive: { $exists: false } }] };
   if (category && category !== 'All' && MEDICINE_CATEGORIES.includes(category)) query.category = category;
   if (schedule && schedule !== 'All' && MEDICINE_SCHEDULES.includes(schedule)) query.schedule = schedule;
   if (search) {
@@ -50,7 +50,7 @@ router.get('/dashboard/stats', async (req, res) => {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const in30  = new Date(today.getTime() + 30 * 86400000);
   const in90  = new Date(today.getTime() + 90 * 86400000);
-  const all   = await Medicine.find({ user: req.user.id, isActive: true });
+  const all   = await Medicine.find({ $or: [{ isActive: true }, { isActive: { $exists: false } }] });
 
   res.json({
     success: true,
@@ -71,7 +71,7 @@ router.get('/dashboard/stats', async (req, res) => {
 
 // GET single medicine
 router.get('/:id', async (req, res) => {
-  const medicine = await Medicine.findOne({ _id: req.params.id, user: req.user.id });
+  const medicine = await Medicine.findOne({ _id: req.params.id });
   if (!medicine) return res.status(404).json({ success: false, message: 'Medicine not found' });
   res.json({ success: true, data: medicine });
 });
@@ -114,7 +114,7 @@ router.post('/', async (req, res) => {
 
 // PUT update
 router.put('/:id', async (req, res) => {
-  const existing = await Medicine.findOne({ _id: req.params.id, user: req.user.id });
+  const existing = await Medicine.findOne({ _id: req.params.id });
   if (!existing) return res.status(404).json({ success: false, message: 'Medicine not found' });
 
   const ALLOWED = ['name', 'genericName', 'manufacturer', 'supplier', 'category', 'schedule', 'expiryDate', 'mrp', 'purchasePrice', 'sellingPrice', 'stockQty', 'reorderLevel', 'storageCondition', 'requiresPrescription'];
@@ -141,7 +141,7 @@ router.put('/:id', async (req, res) => {
 
 // DELETE (soft)
 router.delete('/:id', async (req, res) => {
-  const medicine = await Medicine.findOne({ _id: req.params.id, user: req.user.id });
+  const medicine = await Medicine.findOne({ _id: req.params.id });
   if (!medicine) return res.status(404).json({ success: false, message: 'Medicine not found' });
 
   await Medicine.findByIdAndUpdate(req.params.id, { isActive: false });

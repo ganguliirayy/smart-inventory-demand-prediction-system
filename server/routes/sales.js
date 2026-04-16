@@ -179,39 +179,40 @@ router.get('/stats/summary', async (req, res) => {
 // POST record a sale
 router.post('/', async (req, res) => {
   try {
-    const { medicineId, qty, patientName = '', notes = '' } = req.body;
+    const { medicineId, qty, quantity, patientName = '', notes = '' } = req.body;
+    const finalQty = quantity || qty;
 
     // Validation
+    console.log("Selling:", medicineId, finalQty);
     if (!medicineId) {
       return res.status(400).json({ success: false, message: 'Medicine ID required' });
     }
 
-    if (!isValidQuantity(qty)) {
+    if (!isValidQuantity(finalQty)) {
       return res.status(400).json({ success: false, message: 'Valid quantity required' });
     }
 
     const medicine = await Medicine.findOne({
-      _id: medicineId,
-      user: req.user.id
+      _id: medicineId
     });
 
     if (!medicine) {
       return res.status(404).json({ success: false, message: 'Medicine not found' });
     }
 
-    if (medicine.stockQty < qty) {
+    if (medicine.stockQty < finalQty) {
       return res.status(400).json({
         success: false,
         message: `Insufficient stock. Available: ${medicine.stockQty} units`
       });
     }
 
-    const revenue = medicine.sellingPrice * qty;
-    const profit = (medicine.sellingPrice - medicine.purchasePrice) * qty;
+    const revenue = medicine.sellingPrice * finalQty;
+    const profit = (medicine.sellingPrice - medicine.purchasePrice) * finalQty;
     const gstAmount = revenue * medicine.gstRate / 100;
 
     // Deduct stock
-    await Medicine.findByIdAndUpdate(medicineId, { $inc: { stockQty: -qty } });
+    await Medicine.findByIdAndUpdate(medicineId, { $inc: { stockQty: -finalQty } });
 
     // Create sale record
     const sale = await Sale.create({
@@ -221,7 +222,8 @@ router.post('/', async (req, res) => {
       genericName: medicine.genericName,
       category: medicine.category,
       batchNumber: medicine.batchNumber,
-      qty: sanitizeNumber(qty),
+      qty: sanitizeNumber(finalQty),
+      quantity: sanitizeNumber(finalQty), // store quantity explicitly mapped
       sellingPrice: medicine.sellingPrice,
       purchasePrice: medicine.purchasePrice,
       revenue,
@@ -233,11 +235,10 @@ router.post('/', async (req, res) => {
       soldAt: new Date()
     });
 
-    // Log activity
     await Activity.create({
       user: req.user.id,
       type: 'sell',
-      message: `Sold ${qty}× "${medicine.name}" ${patientName ? `to ${patientName}` : ''} — ₹${Math.round(revenue)}`,
+      message: `Sold ${finalQty}× "${medicine.name}" ${patientName ? `to ${patientName}` : ''} — ₹${Math.round(revenue)}`,
       icon: '💰',
       color: '#f59e0b',
       meta: { medicineId, saleId: sale._id, revenue, profit }
