@@ -48,11 +48,10 @@ app.use(generalLimiter);
 // Health check — also shows DB status
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState;
-  const dbStatus = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   res.json({
     success: true,
     message: '🚀 RxFlow AI Server is LIVE!',
-    database: dbStatus[dbState] || 'unknown',
+    database: dbState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
 });
@@ -64,33 +63,27 @@ app.use('/api/activities',  apiLimiter,  activitiesRoutes);
 app.use('/api/predictions', apiLimiter,  predictionsRoutes);
 app.use('/api/admin',       apiLimiter,  adminRoutes);
 
-// Serve frontend in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
-
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
-  });
-} else {
-  // Catch-all for API 404s when not in production
-  app.use('*', (req, res) => {
-    res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
-  });
-}
+app.use('*', (req, res) => {
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+});
 
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-// Export app for Vercel before calling listen
+// Export app for serverless platforms if needed
 module.exports = app;
 
-if (process.env.NODE_ENV !== 'production' || process.env.RUN_LOCAL === 'true') {
+// Connect to MongoDB, then start server
+connectDB().then(() => {
   const server = app.listen(PORT, () => {
-    console.log(`🚀 RxFlow Server running on http://localhost:${PORT}`);
+    console.log(`🚀 RxFlow Server running on port ${PORT}`);
   });
 
   process.on('SIGTERM', () => {
     server.close(() => { console.log('Server closed.'); process.exit(0); });
   });
-}
+}).catch(err => {
+  console.error("Failed to connect to database, shutting down server.");
+  process.exit(1);
+});
